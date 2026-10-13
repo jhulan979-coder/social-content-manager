@@ -1,0 +1,210 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#0b0812">
+<title>Creator Studio</title>
+<style>
+:root{--bg:#0b0812;--panel:#171121;--line:#30223f;--purple:#a855f7;--pink:#e879f9;--text:#f7f1ff;--muted:#a99ab9}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui, sans-serif}
+header{padding:22px 18px 15px;background:linear-gradient(140deg,#211132,#0b0812 75%);border-bottom:1px solid var(--line)}
+.brand{font-size:23px;font-weight:800;letter-spacing:-.7px}
+.brand span{color:var(--pink)}
+.sub{color:var(--muted);font-size:12px;margin-top:5px}
+main{padding:18px;max-width:850px;margin:auto;padding-bottom:90px}
+h2{font-size:19px;margin:8px 0 14px}
+h3{font-size:15px;margin:0 0 8px}
+.muted{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:15px;margin-bottom:12px}
+.tile{cursor:pointer;min-height:110px}
+.tile .emoji{font-size:25px;margin-bottom:12px}
+.tile b{display:block;margin-bottom:5px}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.primary{background:linear-gradient(110deg,#9333ea,#c026d3);border:0;color:white;border-radius:11px;padding:12px 15px;font-weight:700}
+.secondary{background:#241833;border:1px solid #49305d;color:#eadbff;border-radius:10px;padding:10px 12px}
+input,textarea,select{width:100%;padding:12px;background:#100b19;color:var(--text);border:1px solid var(--line);border-radius:10px;margin:6px 0 12px}
+textarea{min-height:100px;resize:vertical}
+label{font-size:13px;color:#d5c5e5}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.nav{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-around;gap:4px;background:#100b19;border-top:1px solid var(--line);padding:10px 4px calc(10px + env(safe-area-inset-bottom));z-index:5}
+.nav button{background:none;border:0;color:var(--muted);font-size:12px;padding:6px}
+.nav button.active{color:var(--pink)}
+.hidden{display:none!important}
+.result{white-space:pre-wrap;line-height:1.65;overflow-wrap:anywhere}
+hr{border:0;border-top:1px solid var(--line);margin:15px 0}
+@media(min-width:650px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}main{padding-top:26px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Creator<span>Studio</span> ✦</div>
+  <div class="sub">Your content. Your prompts. Your workspace.</div>
+</header>
+<main>
+<section id="home">
+  <div class="card">
+    <div class="muted">YOUR CREATIVE WORKSPACE</div>
+    <h2>Ideas into content ✨</h2>
+    <p class="muted">Create, organize and save content for your social media.</p>
+    <button class="primary" onclick="show('create')">＋ Create content</button>
+  </div>
+  <h2>Quick access</h2>
+  <div class="grid">
+    <div class="card tile" onclick="show('create')"><div class="emoji">✍️</div><b>Content Creator</b><span class="muted">Captions and ideas</span></div>
+    <div class="card tile" onclick="show('prompts')"><div class="emoji">🧠</div><b>Prompt Library</b><span class="muted">Save reusable prompts</span></div>
+    <div class="card tile" onclick="show('saved')"><div class="emoji">🔖</div><b>Saved Content</b><span class="muted">Your local collection</span></div>
+    <div class="card tile" onclick="show('settings')"><div class="emoji">⚙️</div><b>Settings</b><span class="muted">AI connection</span></div>
+  </div>
+  <div class="card"><h3>Works offline</h3><p class="muted">Saved prompts and content stay on this device. Basic templates work without an internet connection.</p></div>
+</section>
+
+<section id="create" class="hidden">
+  <h2>✍️ Content Creator</h2>
+  <div class="card">
+    <label for="platform">Platform</label>
+    <select id="platform"><option>Instagram</option><option>YouTube</option><option>Facebook</option><option>LinkedIn</option><option>WhatsApp</option></select>
+    <label for="kind">Content type</label>
+    <select id="kind"><option>Caption</option><option>Hashtags</option><option>Reel ideas</option><option>Video title</option><option>Video description</option><option>Social media post</option></select>
+    <label for="topic">Topic or idea</label>
+    <textarea id="topic" placeholder="Example: a travel reel about Kashmir"></textarea>
+    <label for="tone">Style</label>
+    <select id="tone"><option>Engaging</option><option>Funny</option><option>Professional</option><option>Inspirational</option><option>Simple Hinglish</option></select>
+    <button class="primary" onclick="generate()">Generate content</button>
+  </div>
+  <div id="outputCard" class="card hidden">
+    <h3>Your result</h3><div id="output" class="result"></div>
+    <div class="actions"><button class="secondary" onclick="copyOutput()">Copy</button><button class="secondary" onclick="saveOutput()">Save content</button></div>
+  </div>
+</section>
+
+<section id="prompts" class="hidden">
+  <h2>🧠 Prompt Manager</h2>
+  <div class="card">
+    <label for="pname">Prompt name</label><input id="pname" placeholder="Example: Instagram caption writer">
+    <label for="ptext">Prompt text</label><textarea id="ptext" placeholder="Write an engaging caption about [topic]..."></textarea>
+    <label for="pcat">Category</label>
+    <select id="pcat"><option>Instagram</option><option>YouTube</option><option>Facebook</option><option>Business</option><option>General</option></select>
+    <button class="primary" onclick="addPrompt()">Save prompt</button>
+  </div>
+  <input id="psearch" placeholder="Search saved prompts..." oninput="renderPrompts()">
+  <div id="promptList"></div>
+</section>
+
+<section id="saved" class="hidden">
+  <h2>🔖 Saved Content</h2>
+  <p class="muted">Your saved content is stored locally on this device.</p>
+  <div id="savedList"></div>
+</section>
+
+<section id="settings" class="hidden">
+  <h2>⚙️ Settings</h2>
+  <div class="card">
+    <h3>AI connection</h3>
+    <p class="muted">AI setup will be enabled in the next steps. Do not paste a secret API key into this public website's code.</p>
+    <label for="endpoint">API service endpoint (optional)</label>
+    <input id="endpoint" placeholder="Configure later">
+    <p class="muted">A secure server-side connection is recommended for a public website. A key saved in browser storage is not fully secure.</p>
+  </div>
+  <div class="card">
+    <h3>Local data</h3>
+    <p class="muted">Your prompts and saved content are kept in this browser on this device.</p>
+    <button class="secondary" onclick="exportData()">Export backup</button>
+    <button class="secondary" onclick="clearData()">Clear all local data</button>
+  </div>
+</section>
+</main>
+<nav class="nav">
+  <button class="active" data-page="home" onclick="show('home')">⌂<br>Home</button>
+  <button data-page="create" onclick="show('create')">✦<br>Create</button>
+  <button data-page="prompts" onclick="show('prompts')">▤<br>Prompts</button>
+  <button data-page="saved" onclick="show('saved')">♡<br>Saved</button>
+  <button data-page="settings" onclick="show('settings')">⚙<br>Settings</button>
+</nav>
+<script>
+const $=id=>document.getElementById(id);
+const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))||fallback}catch(e){return fallback}};
+let prompts=read('csm_prompts',[]);
+let saved=read('csm_saved',[]);
+let currentOutput='';
+function persist(){localStorage.setItem('csm_prompts',JSON.stringify(prompts));localStorage.setItem('csm_saved',JSON.stringify(saved))}
+function show(page){
+ document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));
+ $(page).classList.remove('hidden');
+ document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
+ if(page==='prompts')renderPrompts();
+ if(page==='saved')renderSaved();
+ window.scrollTo(0,0);
+}
+function generate(){
+ const topic=$('topic').value.trim();
+ if(!topic){alert('Please enter a topic first.');return}
+ const platform=$('platform').value,kind=$('kind').value,tone=$('tone').value;
+ let text='';
+ if(kind==='Hashtags'){
+  const tags=topic.toLowerCase().match(/[\p{L}\p{N}]+/gu)||['creative'];
+  text=tags.slice(0,5).map(t=>'#'+t.replace(/[^\p{L}\p{N}_]/gu,'')).join(' ')+' #contentcreator #socialmedia';
+ }else if(kind==='Reel ideas'){
+  text='3 content ideas about '+topic+':\n\n1. A quick beginner guide\n2. Three surprising facts\n3. Before and after: what you learned\n\nHook: "Here is something you should know about '+topic+'."';
+ }else if(kind==='Video title'){
+  text='1. Everything You Need to Know About '+topic+'\n2. '+topic+': 5 Tips You Should Know\n3. A Beginner’s Guide to '+topic;
+ }else if(kind==='Video description'){
+  text='In this '+tone.toLowerCase()+' video, we explore '+topic+'. Watch until the end, share your thoughts in the comments, and follow for more content!\n\n#'+topic.replace(/[^\p{L}\p{N}]/gu,'')+' #'+platform;
+ }else{
+  text='✨ '+topic+' ✨\n\nHere is your reminder to explore something new, learn along the way, and share your journey. What do you think? Tell us in the comments!\n\n#'+topic.toLowerCase().replace(/[^\p{L}\p{N}]/gu,'')+' #'+platform.toLowerCase()+' #'+tone.toLowerCase().replace(/\s/g,'');
+ }
+ currentOutput=text;
+ $('output').textContent=text;
+ $('outputCard').classList.remove('hidden');
+}
+async function copyOutput(){
+ try{await navigator.clipboard.writeText(currentOutput);alert('Copied!')}
+ catch(e){const t=document.createElement('textarea');t.value=currentOutput;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();alert('Copied!')}
+}
+function saveOutput(){
+ if(!currentOutput)return;
+ saved.unshift({id:Date.now(),text:currentOutput,platform:$('platform').value,kind:$('kind').value});
+ persist();alert('Content saved!');renderSaved();
+}
+function addPrompt(){
+ const name=$('pname').value.trim(),text=$('ptext').value.trim();
+ if(!name||!text){alert('Enter both prompt name and prompt text.');return}
+ prompts.unshift({id:Date.now(),name,text,cat:$('pcat').value});
+ persist();$('pname').value='';$('ptext').value='';renderPrompts();alert('Prompt saved!');
+}
+function renderPrompts(){
+ const q=($('psearch').value||'').toLowerCase();
+ const items=prompts.filter(p=>(p.name+' '+p.text+' '+p.cat).toLowerCase().includes(q));
+ $('promptList').innerHTML=items.length?items.map(p=>`<div class="card"><h3>${escapeHTML(p.name)}</h3><div class="muted">${escapeHTML(p.cat)}</div><p class="result">${escapeHTML(p.text)}</p><div class="actions"><button class="secondary" onclick="copyPrompt(${p.id})">Copy</button><button class="secondary" onclick="editPrompt(${p.id})">Edit</button><button class="secondary" onclick="deletePrompt(${p.id})">Delete</button></div></div>`).join(''):'<p class="muted">No prompts yet. Add your first prompt above.</p>';
+}
+function renderSaved(){
+ $('savedList').innerHTML=saved.length?saved.map(s=>`<div class="card"><div class="muted">${escapeHTML(s.platform)} · ${escapeHTML(s.kind)}</div><p class="result">${escapeHTML(s.text)}</p><div class="actions"><button class="secondary" onclick="copySaved(${s.id})">Copy</button><button class="secondary" onclick="deleteSaved(${s.id})">Delete</button></div></div>`).join(''):'<p class="muted">Nothing saved yet. Create some content first.</p>';
+}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function copyPrompt(id){const p=prompts.find(x=>x.id===id);if(p){currentOutput=p.text;copyOutput()}}
+function editPrompt(id){
+ const p=prompts.find(x=>x.id===id);if(!p)return;
+ const name=prompt('Edit prompt name',p.name);if(name===null)return;
+ const text=prompt('Edit prompt text',p.text);if(text===null)return;
+ p.name=name.trim()||p.name;p.text=text.trim()||p.text;persist();renderPrompts();
+}
+function deletePrompt(id){if(confirm('Delete this prompt?')){prompts=prompts.filter(p=>p.id!==id);persist();renderPrompts()}}
+function copySaved(id){const s=saved.find(x=>x.id===id);if(s){currentOutput=s.text;copyOutput()}}
+function deleteSaved(id){if(confirm('Delete this saved content?')){saved=saved.filter(s=>s.id!==id);persist();renderSaved()}}
+function exportData(){
+ const blob=new Blob([JSON.stringify({prompts,saved},null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download='creator-studio-backup.json';a.click();URL.revokeObjectURL(url);
+}
+function clearData(){
+ if(confirm('Delete all locally saved prompts and content?')){
+ prompts=[];saved=[];persist();renderPrompts();renderSaved();alert('Local data cleared.')
+ }
+}
+</script>
+</body>
+</html>
