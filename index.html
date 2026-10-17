@@ -92,6 +92,18 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}
 
   <div id="scriptResult" class="result"></div>
   <div class="actions"><button class="secondary" onclick="copyScript()">Copy script</button><button class="secondary" onclick="saveScript()">Save script</button></div>
+      <hr>
+  <h3>🎞️ Script se Video</h3>
+  <p class="muted">Text-slide video banegi (awaaz nahi). Banate waqt app khula rakho.</p>
+  <label for="vidFormat">Video size</label>
+  <select id="vidFormat"><option value="v">Vertical (Shorts / Reels)</option><option value="h">Horizontal (YouTube)</option></select>
+  <label for="vidSpeed">Slide speed</label>
+  <select id="vidSpeed"><option value="1.4">Tez</option><option value="1" selected>Normal</option><option value="0.7">Dheere</option></select>
+  <button class="primary" onclick="makeVideo()">Video banao</button>
+  <p id="vidStatus" class="muted"></p>
+  <canvas id="vidCanvas" class="hidden" style="width:100%;border-radius:12px;background:#000"></canvas>
+  <video id="vidPlayer" class="hidden" controls playsinline style="width:100%;border-radius:12px"></video>
+  <div id="vidActions" class="actions hidden"><button class="secondary" onclick="shareVideo()">Share / Save video</button></div>
   </div>
   <div class="card">
     <label for="platform">Platform</label>
@@ -451,6 +463,139 @@ function restoreBackup(){
   persist();$('backupText').value='';alert('Backup restore ho gaya!');
  }catch(e){alert('Backup galat hai: '+e.message)}
   }
+  const PAL=[['#1b0f2e','#6d28d9'],['#0f172a','#0ea5e9'],['#2a0f1f','#e11d48'],['#0b1f17','#10b981'],['#2a1a0b','#f59e0b'],['#1a0b2a','#c026d3']];
+let vidBlob=null,vidExt='webm',vidBusy=false;
+function makeScenes(text){
+ const t=text.replace(/\*\*|__|#+/g,'').replace(/\r/g,'');
+ const out=[];
+ for(let line of t.split('\n')){
+  line=line.trim().replace(/^[-•*\d.)\s]+/,'').replace(/\[[^\]]*\]/g,'').trim();
+  if(!line)continue;
+  if(/^(scene|hook|intro|outro|ending|opening|title)\b[^.!?।]{0,30}:?$/i.test(line))continue;
+  line=line.replace(/^[A-Za-z ]{2,20}:\s*/,'');
+  let cur='';
+  for(const s of line.split(/(?<=[.!?।])\s+/)){
+   if(cur&&(cur+' '+s).length>110){out.push(cur);cur=s}
+   else cur=(cur?cur+' ':'')+s;
+  }
+  if(cur)out.push(cur);
+ }
+ return out;
+}
+function wrapLines(ctx,text,maxW){
+ const lines=[];let cur='';
+ for(const w of text.split(/\s+/)){
+  const test=cur?cur+' '+w:w;
+  if(cur&&ctx.measureText(test).width>maxW){lines.push(cur);cur=w}else cur=test;
+ }
+ if(cur)lines.push(cur);
+ return lines;
+}
+function drawScene(ctx,W,H,text,idx,total,p){
+ const c=PAL[idx%PAL.length];
+ const g=ctx.createLinearGradient(0,0,W,H);
+ g.addColorStop(0,c[0]);g.addColorStop(1,c[1]);
+ ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ ctx.fillStyle='rgba(0,0,0,0.25)';ctx.fillRect(0,0,W,H);
+ const a=Math.min(1,p*6);
+ ctx.globalAlpha=a;
+ ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+ let size=Math.round(W*0.075),lines;
+ while(true){
+  ctx.font='700 '+size+'px sans-serif';
+  lines=wrapLines(ctx,text,W*0.84);
+  if(lines.length*size*1.35<=H*0.62||size<=24)break;
+  size-=2;
+ }
+ const lh=size*1.35,y0=H/2-(lines.length-1)*lh/2+(1-a)*H*0.03;
+ lines.forEach((l,i)=>ctx.fillText(l,W/2,y0+i*lh));
+ ctx.globalAlpha=1;
+ ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fillRect(W*0.08,H*0.94,W*0.84,6);
+ ctx.fillStyle='#fff';ctx.fillRect(W*0.08,H*0.94,W*0.84*((idx+p)/total),6);
+}
+async function makeVideo(){
+ if(vidBusy)return;
+ if(!currentScript){alert('Pehle script generate karo.');return}
+ if(typeof MediaRecorder==='undefined'){alert('Is phone me video recording support nahi hai.');return}
+ const scenes=makeScenes(currentScript).slice(0,40);
+ if(!scenes.length){alert('Script me text nahi mila.');return}
+ const vertical=$('vidFormat').value==='v';
+ const speed=parseFloat($('vidSpeed').value)||1;
+ const W=vertical?720:1280,H=vertical?1280:720;
+ const cv=$('vidCanvas');cv.width=W;cv.height=H;cv.classList.remove('hidden');
+ $('vidPlayer').classList.add('hidden');$('vidActions').classList.add('hidden');
+ const ctx=cv.getContext('2d');
+ const types=['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+ const mime=types.find(t=>MediaRecorder.isTypeSupported(t))||'';
+ const durs=scenes.map(s=>Math.max(2.5,Math.min(9,s.split(/\s+/).length*0.45))/speed*1000);
+ const total=durs.reduce((x,y)=>x+y,0);
+ vidBusy=true;
+ let wake=null,stream=null;
+ try{
+  stream=cv.captureStream(30);
+  const rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:2000000}:{videoBitsPerSecond:2000000});
+  const chunks=[];
+  rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  const done=new Promise(r=>{rec.onstop=r});
+  try{wake=await navigator.wakeLock.request('screen')}catch(e){}
+  rec.start(500);
+  const t0=performance.now();
+  await new Promise(resolve=>{
+   function frame(){
+    const el=performance.now()-t0;
+    if(el>=total){resolve();return}
+    let acc=0,i=0;
+    while(i<durs.length-1&&el>=acc+durs[i]){acc+=durs[i];i++}
+    drawScene(ctx,W,H,scenes[i],i,scenes.length,(el-acc)/durs[i]);
+    $('vidStatus').textContent='Video ban rahi hai... '+Math.round(el/total*100)+'% (app band mat karo)';
+    requestAnimationFrame(frame);
+   }
+   frame();
+  });
+  rec.stop();await done;
+  const bt=(rec.mimeType||mime||'video/webm').split(';')[0];
+  vidExt=bt.indexOf('mp4')>=0?'mp4':'webm';
+  vidBlob=new Blob(chunks,{type:bt});
+  const pl=$('vidPlayer');
+  if(pl.src)URL.revokeObjectURL(pl.src);
+  pl.src=URL.createObjectURL(vidBlob);
+  pl.classList.remove('hidden');cv.classList.add('hidden');
+  $('vidActions').classList.remove('hidden');
+  $('vidStatus').textContent='Video taiyar: '+scenes.length+' slides, '+Math.round(total/1000)+' second. Neeche Share / Save dabao.';
+ }catch(e){
+  $('vidStatus').textContent='Video nahi bani: '+(e&&e.message||e);
+ }
+ if(stream)stream.getTracks().forEach(t=>t.stop());
+ if(wake){try{wake.release()}catch(e){}}
+ vidBusy=false;
+}
+function blobToBase64(b){
+ return new Promise((res,rej)=>{
+  const r=new FileReader();
+  r.onload=()=>res(String(r.result).split(',')[1]);
+  r.onerror=rej;
+  r.readAsDataURL(b);
+ });
+}
+async function shareVideo(){
+ if(!vidBlob){alert('Pehle video banao.');return}
+ const name='creator-video-'+Date.now()+'.'+vidExt;
+ const cap=window.Capacitor&&window.Capacitor.Plugins;
+ try{
+  if(cap&&cap.Filesystem&&cap.Share){
+   const data=await blobToBase64(vidBlob);
+   const w=await cap.Filesystem.writeFile({path:name,data:data,directory:'CACHE'});
+   await cap.Share.share({title:'Creator Studio video',files:[w.uri]});
+  }else{
+   const url=URL.createObjectURL(vidBlob),a=document.createElement('a');
+   a.href=url;a.download=name;a.click();
+   setTimeout(()=>URL.revokeObjectURL(url),5000);
+  }
+ }catch(e){
+  const m=String(e&&e.message||e);
+  if(!/cancel/i.test(m))alert('Share nahi hua: '+m);
+ }
+}
 </script>
 </body>
 </html>
