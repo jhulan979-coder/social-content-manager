@@ -104,6 +104,12 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}
   <canvas id="vidCanvas" class="hidden" style="width:100%;border-radius:12px;background:#000"></canvas>
   <video id="vidPlayer" class="hidden" controls playsinline style="width:100%;border-radius:12px"></video>
   <div id="vidActions" class="actions hidden"><button class="primary" onclick="saveVideoGallery()">Gallery me save karo</button><button class="secondary" onclick="shareVideo()">Share / Send</button></div>
+  <hr>
+  <h3>🔊 Awaaz test</h3>
+  <label for="voiceName">Voice</label>
+  <select id="voiceName"><option>Kore</option><option>Puck</option><option>Charon</option><option>Aoede</option><option>Fenrir</option></select>
+  <button class="secondary" onclick="testVoice()">Awaaz test karo</button>
+  <p id="voiceStatus" class="muted"></p> 
   <div class="card">
     <label for="platform">Platform</label>
     <select id="platform"><option>Instagram</option><option>YouTube</option><option>Facebook</option><option>LinkedIn</option><option>WhatsApp</option></select>
@@ -607,6 +613,72 @@ async function shareVideo(){
   alert('Video gallery me save ho gayi (Movies / CreatorStudio).');
  }catch(e){alert('Save nahi hua: '+(e&&e.message||e))}
   }
+const TTS_MODELS=['gemini-3.8-flash-tts','gemini-3.1-flash-tts-preview','gemini-2.5-flash-preview-tts'];
+let ttsModel=localStorage.getItem('csm_tts_model')||'';
+function pcmToSamples(b64,mime){
+ const m=/rate=(\d+)/.exec(mime);
+ const rate=m?parseInt(m[1]):24000;
+ const bin=atob(b64);
+ const n=bin.length>>1;
+ const f=new Float32Array(n);
+ for(let i=0;i<n;i++){
+  let v=bin.charCodeAt(2*i)|(bin.charCodeAt(2*i+1)<<8);
+  if(v&0x8000)v-=0x10000;
+  f[i]=v/32768;
+ }
+ return {samples:f,rate:rate};
+}
+async function ttsFetch(text,voice){
+ const key=localStorage.getItem('csm_gemini_key');
+ if(!key)throw new Error('Pehle Settings me Gemini key save karo.');
+ const cached=!!ttsModel;
+ const list=cached?[ttsModel]:TTS_MODELS;
+ let lastErr='';
+ for(const m of list){
+  try{
+   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(key),{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+     contents:[{parts:[{text:text}]}],
+     generationConfig:{
+      responseModalities:['AUDIO'],
+      speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:voice||'Kore'}}}
+     }
+    })
+   });
+   const d=await r.json();
+   if(!r.ok)throw new Error((d.error&&d.error.message)||('HTTP '+r.status));
+   const c=((d.candidates||[])[0]||{}).content;
+   const inl=c&&c.parts&&c.parts.find(p=>p.inlineData);
+   if(!inl)throw new Error('Audio nahi mila');
+   ttsModel=m;
+   localStorage.setItem('csm_tts_model',m);
+   return pcmToSamples(inl.inlineData.data,inl.inlineData.mimeType||'');
+  }catch(e){
+   lastErr=m+': '+(e.message||e);
+  }
+ }
+ if(cached){ttsModel='';localStorage.removeItem('csm_tts_model')}
+ throw new Error(lastErr);
+}
+async function testVoice(){
+ const st=$('voiceStatus');
+ st.textContent='Awaaz ban rahi hai...';
+ try{
+  const r=await ttsFetch('Namaste! Ye Creator Studio ki awaaz ka test hai.',$('voiceName').value);
+  const ac=new (window.AudioContext||window.webkitAudioContext)();
+  const buf=ac.createBuffer(1,r.samples.length,r.rate);
+  buf.copyToChannel(r.samples,0);
+  const s=ac.createBufferSource();
+  s.buffer=buf;
+  s.connect(ac.destination);
+  s.start();
+  st.textContent='Awaaz chal rahi hai. Model: '+ttsModel;
+ }catch(e){
+  st.textContent='Awaaz nahi bani: '+(e.message||e);
+ }
+}
 </script>
 </body>
 </html>
