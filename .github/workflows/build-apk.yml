@@ -116,19 +116,28 @@ jobs:
         env:
           KS: ${{ secrets.DEBUG_KS_B64 }}
         run: |
-          if [ -n "$KS" ]; then
-            mkdir -p ~/.android
-            echo "$KS" | base64 -d > ~/.android/debug.keystore
-            echo "FIXED KEY LAGA"
-          else
+          if [ -z "$KS" ]; then
             echo "SECRET NAHI HAI"
+            exit 1
           fi
-          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" android/app/build.gradle || true
+          mkdir -p ~/.android
+          echo "$KS" | base64 -d > ~/.android/debug.keystore
+          cp ~/.android/debug.keystore android/app/cg.jks
+          G=android/app/build.gradle
+          sed -i 's#buildTypes {#signingConfigs {\n        debug {\n            storeFile file("cg.jks")\n            storePassword "android"\n            keyAlias "androiddebugkey"\n            keyPassword "android"\n        }\n    }\n    buildTypes {#' $G
+          grep -q 'cg.jks' $G || { echo "SIGNING CONFIG FAIL"; exit 1; }
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/" $G
+          grep -q "versionCode ${{ github.run_number }}" $G || echo "WARNING: versionCode nahi badla"
+          echo "FIXED KEY LAGA"
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
+      - name: Show signing fingerprint
+        run: |
+          AS=$(ls -d $ANDROID_HOME/build-tools/* | tail -1)/apksigner
+          $AS verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk | grep -i "SHA-256" || echo "fingerprint nahi mila"
       - name: Publish APK to Release
         env:
           GH_TOKEN: ${{ github.token }}
