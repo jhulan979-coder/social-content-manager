@@ -111,6 +111,13 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}
   <select id="voiceName"><option>Kore</option><option>Puck</option><option>Charon</option><option>Aoede</option><option>Fenrir</option></select>
   <button class="secondary" onclick="testVoice()">Awaaz test karo</button>
   <p id="voiceStatus" class="muted"></p> 
+  <hr>
+  <h3>🖼️ Tasveer test</h3>
+  <label for="imgPrompt">Tasveer ka vishay (English me behtar)</label>
+  <input id="imgPrompt" value="A cinematic illustration of a Mughal emperor in a royal court, warm colors, no text">
+  <button class="secondary" onclick="testImage()">Tasveer test karo</button>
+  <p id="imgStatus" class="muted"></p>
+  <img id="imgPreview" class="hidden" style="width:100%;border-radius:12px">
   <div class="card">
     <label for="platform">Platform</label>
     <select id="platform"><option>Instagram</option><option>YouTube</option><option>Facebook</option><option>LinkedIn</option><option>WhatsApp</option></select>
@@ -788,6 +795,51 @@ async function makeVideoVoice(){
  if(wake){try{wake.release()}catch(e){}}
  if(ac){try{ac.close()}catch(e){}}
  vidBusy=false;
+}
+const IMG_MODELS=['gemini-2.5-flash-image','gemini-2.5-flash-image-preview','gemini-2.0-flash-preview-image-generation'];
+let imgModel=localStorage.getItem('csm_img_model')||'';
+async function imgFetch(prompt){
+ const key=localStorage.getItem('csm_gemini_key');
+ if(!key)throw new Error('Pehle Settings me Gemini key save karo.');
+ const cached=!!imgModel;
+ const list=cached?[imgModel]:IMG_MODELS;
+ let lastErr='';
+ for(const m of list){
+  try{
+   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(key),{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+     contents:[{parts:[{text:prompt}]}],
+     generationConfig:{responseModalities:['TEXT','IMAGE']}
+    })
+   });
+   const d=await r.json();
+   if(!r.ok)throw new Error((d.error&&d.error.message)||('HTTP '+r.status));
+   const c=((d.candidates||[])[0]||{}).content;
+   const inl=c&&c.parts&&c.parts.find(p=>p.inlineData&&/^image\//.test(p.inlineData.mimeType||''));
+   if(!inl)throw new Error('Tasveer nahi mili');
+   imgModel=m;
+   localStorage.setItem('csm_img_model',m);
+   return 'data:'+inl.inlineData.mimeType+';base64,'+inl.inlineData.data;
+  }catch(e){
+   lastErr=m+': '+(e.message||e);
+  }
+ }
+ if(cached){imgModel='';localStorage.removeItem('csm_img_model')}
+ throw new Error(lastErr);
+}
+async function testImage(){
+ const st=$('imgStatus');
+ st.textContent='Tasveer ban rahi hai...';
+ try{
+  const src=await imgFetch($('imgPrompt').value||'A beautiful landscape, no text');
+  $('imgPreview').src=src;
+  $('imgPreview').classList.remove('hidden');
+  st.textContent='Tasveer ban gayi. Model: '+imgModel;
+ }catch(e){
+  st.textContent='Tasveer nahi bani: '+(e.message||e);
+ }
 }
 </script>
 </body>
