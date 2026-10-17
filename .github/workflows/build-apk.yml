@@ -27,6 +27,91 @@ jobs:
           mkdir -p www
           cp index.html www/index.html
       - run: npx cap add android
+      - name: Add video saver
+        run: |
+          D=android/app/src/main/java/com/creatorstudio/app
+          mkdir -p $D
+          cat > $D/VideoSaverPlugin.java << 'EOF'
+          package com.creatorstudio.app;
+
+          import android.content.ContentResolver;
+          import android.content.ContentValues;
+          import android.net.Uri;
+          import android.os.Build;
+          import android.os.Environment;
+          import android.provider.MediaStore;
+          import com.getcapacitor.Plugin;
+          import com.getcapacitor.PluginCall;
+          import com.getcapacitor.PluginMethod;
+          import com.getcapacitor.annotation.CapacitorPlugin;
+          import java.io.File;
+          import java.io.FileInputStream;
+          import java.io.InputStream;
+          import java.io.OutputStream;
+
+          @CapacitorPlugin(name = "VideoSaver")
+          public class VideoSaverPlugin extends Plugin {
+              @PluginMethod
+              public void save(PluginCall call) {
+                  try {
+                      String path = call.getString("path");
+                      String name = call.getString("name", "creator-video.mp4");
+                      String mime = call.getString("mime", "video/mp4");
+                      if (path == null) {
+                          call.reject("path nahi mila");
+                          return;
+                      }
+                      if (Build.VERSION.SDK_INT < 29) {
+                          call.reject("Android 10 ya naya chahiye. Share use karo.");
+                          return;
+                      }
+                      File src = new File(Uri.parse(path).getPath());
+                      ContentResolver cr = getContext().getContentResolver();
+                      ContentValues v = new ContentValues();
+                      v.put(MediaStore.Video.Media.DISPLAY_NAME, name);
+                      v.put(MediaStore.Video.Media.MIME_TYPE, mime);
+                      v.put(MediaStore.Video.Media.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/CreatorStudio");
+                      v.put(MediaStore.Video.Media.IS_PENDING, 1);
+                      Uri uri = cr.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, v);
+                      if (uri == null) {
+                          call.reject("Gallery me jagah nahi bani");
+                          return;
+                      }
+                      OutputStream out = cr.openOutputStream(uri);
+                      InputStream in = new FileInputStream(src);
+                      byte[] buf = new byte[65536];
+                      int n;
+                      while ((n = in.read(buf)) > 0) {
+                          out.write(buf, 0, n);
+                      }
+                      in.close();
+                      out.close();
+                      ContentValues done = new ContentValues();
+                      done.put(MediaStore.Video.Media.IS_PENDING, 0);
+                      cr.update(uri, done, null, null);
+                      call.resolve();
+                  } catch (Exception e) {
+                      call.reject("Save fail: " + e.getMessage());
+                  }
+              }
+          }
+          EOF
+          cat > $D/MainActivity.java << 'EOF'
+          package com.creatorstudio.app;
+
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  registerPlugin(VideoSaverPlugin.class);
+                  super.onCreate(savedInstanceState);
+              }
+          }
+          EOF
+          test -f $D/VideoSaverPlugin.java || { echo "VIDEOSAVER FAIL"; exit 1; }
+          echo "VIDEOSAVER OK"
       - name: Fixed signing key
         env:
           KS: ${{ secrets.DEBUG_KS_B64 }}
