@@ -424,9 +424,33 @@ function clearData(){
  prompts=[];saved=[];persist();renderPrompts();renderSaved();alert('Local data cleared.')
  }
 }
-  <textarea id="backupText" placeholder="Restore ke liye backup yahan paste karo"></textarea>
-    <button class="secondary" onclick="copyBackup()">Backup copy karo</button>
-    <button class="secondary" onclick="restoreBackup()">Backup restore karo</button>
+let currentScript='';
+function copyScript(){
+ if(!currentScript){alert('Pehle script generate karo.');return}
+ currentOutput=currentScript;copyOutput();
+}
+function saveScript(){
+ if(!currentScript){alert('Pehle script generate karo.');return}
+ saved.unshift({id:Date.now(),text:currentScript,platform:'YouTube',kind:'Script'});
+ persist();alert('Script saved!');
+}
+function copyBackup(){
+ currentOutput=JSON.stringify({prompts,saved});
+ copyOutput();
+}
+function restoreBackup(){
+ const t=$('backupText').value.trim();
+ if(!t){alert('Pehle backup ka text paste karo.');return}
+ try{
+  const d=JSON.parse(t);
+  if(!Array.isArray(d.prompts)||!Array.isArray(d.saved))throw new Error('galat backup');
+  const pid=new Set(prompts.map(p=>p.id));
+  d.prompts.forEach(p=>{if(!pid.has(p.id))prompts.push(p)});
+  const sid=new Set(saved.map(s=>s.id));
+  d.saved.forEach(s=>{if(!sid.has(s.id))saved.push(s)});
+  persist();$('backupText').value='';alert('Backup restore ho gaya!');
+ }catch(e){alert('Backup galat hai: '+e.message)}
+  }
 </script>
 </body>
 </html>
