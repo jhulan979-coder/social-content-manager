@@ -100,6 +100,7 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}
   <label for="vidSpeed">Slide speed</label>
   <select id="vidSpeed"><option value="1.4">Tez</option><option value="1" selected>Normal</option><option value="0.7">Dheere</option></select>
   <button class="primary" onclick="makeVideo()">Video banao</button>
+  <button class="primary" onclick="makeVideoVoice()">🔊 Awaaz wali video</button>
   <p id="vidStatus" class="muted"></p>
   <canvas id="vidCanvas" class="hidden" style="width:100%;border-radius:12px;background:#000"></canvas>
   <video id="vidPlayer" class="hidden" controls playsinline style="width:100%;border-radius:12px"></video>
@@ -678,6 +679,115 @@ async function testVoice(){
  }catch(e){
   st.textContent='Awaaz nahi bani: '+(e.message||e);
  }
+}
+  async function ttsRetry(text,voice,st,label){
+ let err;
+ for(let k=0;k<3;k++){
+  try{return await ttsFetch(text,voice)}
+  catch(e){
+   err=e;
+   const m=String(e&&e.message||e);
+   if(!/429|quota|rate|exhaust|try again/i.test(m))break;
+   for(let s=15;s>0;s--){
+    st.textContent=label+' limit lagi hai, '+s+' second ruk ke dobara...';
+    await new Promise(r=>setTimeout(r,1000));
+   }
+  }
+ }
+ throw err;
+}
+async function makeVideoVoice(){
+ if(vidBusy)return;
+ if(!currentScript){alert('Pehle script generate karo.');return}
+ if(typeof MediaRecorder==='undefined'){alert('Is phone me video recording support nahi hai.');return}
+ const scenes=makeScenes(currentScript).slice(0,25);
+ if(!scenes.length){alert('Script me text nahi mila.');return}
+ const voice=$('voiceName').value||'Kore';
+ const st=$('vidStatus');
+ const vertical=$('vidFormat').value==='v';
+ const W=vertical?720:1280,H=vertical?1280:720;
+ const cv=$('vidCanvas');
+ vidBusy=true;
+ let ac=null,wake=null,stream=null;
+ try{
+  ac=new (window.AudioContext||window.webkitAudioContext)();
+  await ac.resume();
+  const clips=[];
+  for(let i=0;i<scenes.length;i++){
+   const label='Awaaz '+(i+1)+'/'+scenes.length+':';
+   st.textContent=label+' ban rahi hai...';
+   try{
+    clips.push(await ttsRetry(scenes[i],voice,st,label));
+   }catch(e){
+    if(i===0)throw e;
+    clips.push(null);
+   }
+  }
+  const durs=clips.map((c,i)=>c?Math.max(2,c.samples.length/c.rate+0.5)*1000:Math.max(2.5,Math.min(9,scenes[i].split(/\s+/).length*0.45))*1000);
+  const total=durs.reduce((x,y)=>x+y,0);
+  cv.width=W;cv.height=H;cv.classList.remove('hidden');
+  $('vidPlayer').classList.add('hidden');$('vidActions').classList.add('hidden');
+  const ctx=cv.getContext('2d');
+  const dest=ac.createMediaStreamDestination();
+  const types=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  const mime=types.find(t=>MediaRecorder.isTypeSupported(t))||'';
+  stream=cv.captureStream(30);
+  dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+  const rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:2000000}:{videoBitsPerSecond:2000000});
+  const chunks=[];
+  rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  const done=new Promise(r=>{rec.onstop=r});
+  try{wake=await navigator.wakeLock.request('screen')}catch(e){}
+  rec.start(500);
+  const base=ac.currentTime+0.3;
+  let acc=0;
+  clips.forEach((c,i)=>{
+   if(c){
+    const buf=ac.createBuffer(1,c.samples.length,c.rate);
+    buf.copyToChannel(c.samples,0);
+    const s=ac.createBufferSource();
+    s.buffer=buf;
+    s.connect(dest);
+    s.connect(ac.destination);
+    s.start(base+acc/1000);
+   }
+   acc+=durs[i];
+  });
+  await new Promise(resolve=>{
+   function frame(){
+    const el=(ac.currentTime-base)*1000;
+    if(el>=total){resolve();return}
+    if(el<0){
+     drawScene(ctx,W,H,scenes[0],0,scenes.length,0);
+     requestAnimationFrame(frame);
+     return;
+    }
+    let a2=0,i=0;
+    while(i<durs.length-1&&el>=a2+durs[i]){a2+=durs[i];i++}
+    drawScene(ctx,W,H,scenes[i],i,scenes.length,(el-a2)/durs[i]);
+    st.textContent='Video ban rahi hai... '+Math.round(el/total*100)+'% (app band mat karo)';
+    requestAnimationFrame(frame);
+   }
+   frame();
+  });
+  rec.stop();
+  await done;
+  const bt=(rec.mimeType||mime||'video/webm').split(';')[0];
+  vidExt=bt.indexOf('mp4')>=0?'mp4':'webm';
+  vidBlob=new Blob(chunks,{type:bt});
+  const pl=$('vidPlayer');
+  if(pl.src)URL.revokeObjectURL(pl.src);
+  pl.src=URL.createObjectURL(vidBlob);
+  pl.classList.remove('hidden');cv.classList.add('hidden');
+  $('vidActions').classList.remove('hidden');
+  st.textContent='Awaaz wali video taiyar: '+scenes.length+' slides, '+Math.round(total/1000)+' second.';
+ }catch(e){
+  st.textContent='Video nahi bani: '+(e&&e.message||e);
+ }
+ if(stream)stream.getTracks().forEach(t=>t.stop());
+ if(wake){try{wake.release()}catch(e){}}
+ if(ac){try{ac.close()}catch(e){}}
+ vidBusy=false;
 }
 </script>
 </body>
