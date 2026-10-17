@@ -103,8 +103,7 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}
   <p id="vidStatus" class="muted"></p>
   <canvas id="vidCanvas" class="hidden" style="width:100%;border-radius:12px;background:#000"></canvas>
   <video id="vidPlayer" class="hidden" controls playsinline style="width:100%;border-radius:12px"></video>
-  <div id="vidActions" class="actions hidden"><button class="secondary" onclick="shareVideo()">Share / Save video</button></div>
-  </div>
+  <div id="vidActions" class="actions hidden"><button class="primary" onclick="saveVideoGallery()">Gallery me save karo</button><button class="secondary" onclick="shareVideo()">Share / Send</button></div>
   <div class="card">
     <label for="platform">Platform</label>
     <select id="platform"><option>Instagram</option><option>YouTube</option><option>Facebook</option><option>LinkedIn</option><option>WhatsApp</option></select>
@@ -596,6 +595,18 @@ async function shareVideo(){
   if(!/cancel/i.test(m))alert('Share nahi hua: '+m);
  }
 }
+ async function saveVideoGallery(){
+ if(!vidBlob){alert('Pehle video banao.');return}
+ const name='creator-video-'+Date.now()+'.'+vidExt;
+ const cap=window.Capacitor&&window.Capacitor.Plugins;
+ if(!cap||!cap.Filesystem||!cap.VideoSaver){alert('Ye sirf app ke andar chalta hai. Share / Send use karo.');return}
+ try{
+  const data=await blobToBase64(vidBlob);
+  const w=await cap.Filesystem.writeFile({path:name,data:data,directory:'CACHE'});
+  await cap.VideoSaver.save({path:w.uri,name:name,mime:vidExt==='mp4'?'video/mp4':'video/webm'});
+  alert('Video gallery me save ho gayi (Movies / CreatorStudio).');
+ }catch(e){alert('Save nahi hua: '+(e&&e.message||e))}
+  }
 </script>
 </body>
 </html>
