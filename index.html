@@ -91,6 +91,7 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}
   <button class="primary" onclick="generateScript()">Generate Script</button>
 
   <div id="scriptResult" class="result"></div>
+  <div class="actions"><button class="secondary" onclick="copyScript()">Copy script</button><button class="secondary" onclick="saveScript()">Save script</button></div>
   </div>
   <div class="card">
     <label for="platform">Platform</label>
@@ -151,7 +152,9 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}
   <div class="card">
     <h3>Local data</h3>
     <p class="muted">Your prompts and saved content are kept in this browser on this device.</p>
-    <button class="secondary" onclick="exportData()">Export backup</button>
+    <textarea id="backupText" placeholder="Restore ke liye backup yahan paste karo"></textarea>
+    <button class="secondary" onclick="copyBackup()">Backup copy karo</button>
+    <button class="secondary" onclick="restoreBackup()">Backup restore karo</button>
     <button class="secondary" onclick="clearData()">Clear all local data</button>
   </div>
 </section>
@@ -297,6 +300,7 @@ function show(page){
     }
 
     $('scriptResult').textContent = result;
+     currentScript = result;
 
   }catch(error){
     $('scriptResult').textContent = 'Error: ' + error.message;
@@ -420,6 +424,9 @@ function clearData(){
  prompts=[];saved=[];persist();renderPrompts();renderSaved();alert('Local data cleared.')
  }
 }
+  <textarea id="backupText" placeholder="Restore ke liye backup yahan paste karo"></textarea>
+    <button class="secondary" onclick="copyBackup()">Backup copy karo</button>
+    <button class="secondary" onclick="restoreBackup()">Backup restore karo</button>
 </script>
 </body>
 </html>
