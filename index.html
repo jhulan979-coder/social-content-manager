@@ -2057,5 +2057,46 @@ async function makeToon3(){
     ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
   
 </script>
+  <script>
+(function(){
+ function show(msg){
+  var d=document.createElement('div');
+  d.style.cssText='position:fixed;top:70px;left:0;right:0;z-index:99998;background:#92400e;color:#fff;padding:10px;font:13px monospace;white-space:pre-wrap';
+  d.textContent=msg;
+  document.body.appendChild(d);
+ }
+ try{
+  var best='';
+  var ss=document.scripts;
+  for(var i=0;i<ss.length;i++){
+   var t=ss[i].textContent||'';
+   if(t.length>best.length)best=t;
+  }
+  var lines=best.split('\n');
+  var depth=0,prev=-1,msg='';
+  for(var n=0;n<lines.length;n++){
+   var ln=lines[n];
+   if(/^(async function|function|const|let) /.test(ln)){
+    if(depth!==0){
+     msg='Adhura function (line '+(prev+1)+'):\n'+lines[prev].slice(0,80)+'\n\nYe khula reh gaya, agla function line '+(n+1)+' pe shuru ho gaya:\n'+ln.slice(0,80);
+     break;
+    }
+    prev=n;
+   }
+   for(var c=0;c<ln.length;c++){
+    var ch=ln.charAt(c);
+    if(ch==='{')depth++;
+    else if(ch==='}')depth--;
+   }
+   if(depth<0){
+    msg='Fazool } mila (line '+(n+1)+'):\n'+ln.slice(0,80)+'\n\nIske upar wala function galat hai (line '+(prev+1)+'):\n'+(lines[prev]||'').slice(0,80);
+    break;
+   }
+  }
+  if(!msg&&depth!==0)msg='Aakhir tak ek { band nahi hua. Aakhri function (line '+(prev+1)+'):\n'+(lines[prev]||'').slice(0,80);
+  show(msg||'Brackets sahi lag rahe hain.');
+ }catch(e){show('Check nahi chala: '+e.message)}
+})();
+  </script>
 </body>
 </html>
