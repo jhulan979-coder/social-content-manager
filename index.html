@@ -2810,5 +2810,93 @@ function toonSub3(ctx,W,H,name,text,prog){
  });
 }
   </script>
+  <script>
+window.__toon=window.__toon||{i:-1,t0:performance.now(),emo:'neutral',hx:0,hy:0,curZ:1,prevZ:1};
+async function toonStory3(topic,lang){
+ const prompt='Write a genuinely funny, fast slapstick cartoon story for a YouTube Shorts video. Topic: '+topic+'. Language: '+lang+' (if Hindi, write in Devanagari script). Use 2 or 3 characters with very different personalities. Quick witty dialogue, exaggerated reactions, physical comedy like falling, getting bonked, dancing and spinning, a surprising twist near the end, and a one-line funny moral. The first line must be a strong hook. Return ONLY valid JSON in this exact shape: {"title":"...","characters":[{"name":"...","skin":"#f1c27d","color":"#3b82f6","hat":"none"}],"lines":[{"who":"exact character name","text":"one or two short sentences","bg":"palace","emo":"happy","action":"none","prop":"","pop":""}]}. hat must be one of: none, turban, crown, cap, hair, bow. bg must be one of: palace, forest, village, room, sky. emo must be one of: happy, angry, surprised, sad, laugh, scared, neutral. action must be one of: none, fall, spin, dance, bonk, shake, grow, shrink. prop is ONE emoji the speaker holds (like a banana, cake, money bag, crown) or an empty string. pop is a short comic sound word in English capitals like BONK!, POW!, OOPS!, HA HA!, BOOM! or an empty string. Use action, prop or pop in about half of the lines. Give 8 to 10 lines, each under 100 characters. Character names must be short.';
+ const raw=await geminiText(prompt,{temperature:1,maxOutputTokens:3500,responseMimeType:'application/json'});
+ const j=JSON.parse(raw.replace(/```json|```/g,'').trim());
+ if(!j.characters||!j.characters.length||!j.lines||!j.lines.length)throw new Error('Kahani sahi format me nahi aayi, dobara try karo.');
+ j.characters=j.characters.slice(0,3);
+ j.lines=j.lines.filter(l=>l&&String(l.text||'').trim()).slice(0,10);
+ if(!j.lines.length)throw new Error('Kahani khali aayi.');
+ window.__toon.raw=j.lines;
+ return j;
+}
+try{
+ if(!window.__toonFx){
+  window.__toonFx=1;
+  (function(){
+   const tt=toonTargets;
+   toonTargets=function(n,si,i){
+    const r=tt(n,si,i);
+    window.__toon.i=i;
+    window.__toon.t0=performance.now();
+    return r;
+   };
+   const tc=toonChar3;
+   toonChar3=function(ctx,x,y,s,ch,o){
+    const raw=window.__toon.raw?window.__toon.raw[window.__toon.i]:null;
+    if(!raw){tc(ctx,x,y,s,ch,o);return}
+    const lt=(performance.now()-window.__toon.t0)/1000;
+    const act=String(raw.action||'none');
+    const isSp=!!(o&&o.speak);
+    let rot=0,sx=1,sy=1,dx=0,dy=0;
+    if(isSp){
+     if(act==='fall'){const p=Math.max(0,Math.min(1,(lt-0.5)/0.35));rot=-p*p*(Math.PI/2)*o.flip;dy=p*8*s}
+     else if(act==='spin'){if(lt<0.9)sx=Math.cos(lt*9)}
+     else if(act==='dance'){dy=-Math.abs(Math.sin(lt*7))*28*s;rot=Math.sin(lt*7)*0.14}
+     else if(act==='bonk'){const p=Math.max(0,1-Math.abs(lt-0.45)/0.15);sx=1+0.28*p;sy=1-0.3*p}
+     else if(act==='shake'){if(lt<1.4)dx=Math.sin(lt*45)*9*s}
+     else if(act==='grow'){const g=Math.min(1,lt/0.6);sx=1+0.3*g;sy=1+0.3*g}
+     else if(act==='shrink'){const g=Math.min(1,lt/0.6);sx=1-0.3*g;sy=1-0.3*g}
+    }else if((act==='fall'||act==='bonk')&&lt>0.5&&lt<1.3){
+     dy=-Math.abs(Math.sin((lt-0.5)*10))*18*s;
+    }
+    ctx.save();
+    ctx.translate(x+dx,y+dy);
+    ctx.rotate(rot);
+    ctx.scale(sx,sy);
+    ctx.translate(-x,-y);
+    tc(ctx,x,y,s,ch,o);
+    ctx.restore();
+    if(!isSp)return;
+    if(raw.prop&&lt>0.15){
+     const sz=Math.max(8,Math.round(92*s*Math.min(1,(lt-0.15)/0.25)));
+     ctx.save();
+     ctx.font=sz+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+     ctx.translate(x+o.flip*88*s,y-170*s+Math.sin(lt*4)*8*s);
+     ctx.rotate(Math.sin(lt*3)*0.2);
+     ctx.fillText(String(raw.prop).slice(0,4),0,0);
+     ctx.restore();
+    }
+    if(act==='bonk'&&lt>0.45&&lt<1.6){
+     ctx.save();
+     ctx.font=Math.round(38*s)+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+     for(let k=0;k<3;k++){
+      const a=lt*6+k*2.09;
+      ctx.fillText('⭐',x+Math.cos(a)*48*s,y-300*s+Math.sin(a)*14*s);
+     }
+     ctx.restore();
+    }
+    if(raw.pop&&lt>0.1&&lt<1.4){
+     const txt=String(raw.pop).slice(0,10).toUpperCase();
+     const p=Math.min(1,(lt-0.1)/0.15);
+     const fs=Math.round(70*s*(0.6+0.4*p)*(1+0.08*Math.sin(lt*30)));
+     ctx.save();
+     ctx.globalAlpha=Math.min(1,(1.4-lt)*3);
+     ctx.translate(x-o.flip*20*s,y-340*s-lt*20*s);
+     ctx.rotate(-0.15);
+     ctx.font='900 '+fs+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+     ctx.lineJoin='round';ctx.lineWidth=fs*0.22;ctx.strokeStyle='#111';
+     ctx.strokeText(txt,0,0);
+     ctx.fillStyle='#fde047';ctx.fillText(txt,0,0);
+     ctx.restore();
+    }
+   };
+  })();
+ }
+}catch(e){}
+  </script>
 </body>
 </html>
