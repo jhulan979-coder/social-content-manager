@@ -1501,6 +1501,68 @@ async function makeToon2(){
  if(ac){try{ac.close()}catch(e){}}
  vidBusy=false;
   }
+  let txtModels=null;
+async function listTextModels(key){
+ const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key='+encodeURIComponent(key));
+ const d=await r.json();
+ if(!r.ok)throw new Error((d.error&&d.error.message)||('HTTP '+r.status));
+ const names=(d.models||[])
+  .filter(m=>(m.supportedGenerationMethods||[]).indexOf('generateContent')>=0)
+  .map(m=>m.name.replace('models/',''))
+  .filter(n=>/^gemini/.test(n)&&/flash/i.test(n)&&!/image|tts|audio|live|embedding|robotics|computer|vision|native/i.test(n));
+ const sc=n=>(/lite/i.test(n)?4:0)+(/preview|exp/i.test(n)?0:1);
+ names.sort((a,b)=>sc(b)-sc(a));
+ return names.slice(0,6);
+}
+async function geminiText(prompt,cfg){
+ const key=localStorage.getItem('csm_gemini_key');
+ if(!key)throw new Error('Pehle Settings me Gemini key save karo.');
+ if(!txtModels||!txtModels.length)txtModels=await listTextModels(key);
+ let list=txtModels.slice();
+ const first=localStorage.getItem('csm_text_model');
+ if(first&&list.indexOf(first)>=0)list=[first].concat(list.filter(x=>x!==first));
+ let errs='';
+ for(const m of list){
+  let r,d;
+  try{
+   r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(key),{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:cfg})
+   });
+   d=await r.json();
+  }catch(e){
+   errs+=m+': internet\n';
+   continue;
+  }
+  if(!r.ok){
+   const msg=(d.error&&d.error.message)||('HTTP '+r.status);
+   errs+=m+': '+msg.slice(0,90)+'\n';
+   if(r.status===429||r.status===404||r.status===403||/quota|not found|not supported|exceeded/i.test(msg))continue;
+   throw new Error(msg);
+  }
+  try{
+   const t=d.candidates[0].content.parts.map(p=>p.text||'').join('');
+   if(t){
+    localStorage.setItem('csm_text_model',m);
+    return t;
+   }
+   errs+=m+': khali jawab\n';
+  }catch(e){
+   errs+=m+': jawab sahi nahi\n';
+  }
+ }
+ throw new Error('Kisi model se jawab nahi mila:\n'+errs);
+}
+async function toonStory(topic,lang,gk){
+ const prompt='Write a short, fun cartoon story for a YouTube video. Topic: '+topic+'. Language: '+lang+' (if Hindi, write in Devanagari script). Use 2 or 3 characters. Return ONLY valid JSON in this exact shape: {"title":"...","characters":[{"name":"...","skin":"#f1c27d","color":"#3b82f6","hat":"none"}],"lines":[{"who":"exact character name","text":"one or two short sentences","bg":"palace"}]}. hat must be one of: none, turban, crown, cap, hair, bow. bg must be one of: palace, forest, village, room, sky. Give 6 to 10 lines, each under 110 characters, with a clear beginning, middle and a funny or moral ending. Character names must be short.';
+ const raw=await geminiText(prompt,{temperature:0.9,maxOutputTokens:3000,responseMimeType:'application/json'});
+ const j=JSON.parse(raw.replace(/```json|```/g,'').trim());
+ if(!j.characters||!j.characters.length||!j.lines||!j.lines.length)throw new Error('Kahani sahi format me nahi aayi, dobara try karo.');
+ j.characters=j.characters.slice(0,3);
+ j.lines=j.lines.slice(0,10);
+ return j;
+}
 </script>
 </body>
 </html>
