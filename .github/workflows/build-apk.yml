@@ -26,6 +26,7 @@ jobs:
         run: |
           mkdir -p www
           cp index.html www/index.html
+          cp toon3d.js www/toon3d.js
       - run: npx cap add android
       - name: Add video saver
         run: |
