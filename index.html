@@ -41,6 +41,14 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}
 </style>
 </head>
 <body>
+  <script>
+window.onerror=function(m,s,l,c){
+ var d=document.createElement('div');
+ d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#b91c1c;color:#fff;padding:10px;font:13px monospace;white-space:pre-wrap';
+ d.textContent='JS ERROR: '+m+' (line '+l+':'+c+')';
+ document.body.appendChild(d);
+};
+  </script>
 <header>
   <div class="brand">Creator<span>Studio</span> ✦</div>
   <div class="sub">Your content. Your prompts. Your workspace.</div>
