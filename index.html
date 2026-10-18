@@ -129,7 +129,21 @@ hr{border:0;border-top:1px solid var(--line);margin:15px 0}
     <select id="tone"><option>Engaging</option><option>Funny</option><option>Professional</option><option>Inspirational</option><option>Simple Hinglish</option></select>
     <button class="primary" onclick="generate()">Generate content</button>
   </div>
-  <div id="outputCard" class="card hidden">
+   <div class="card">
+    <h3>🎭 Cartoon Story Video</h3>
+    <p class="muted">Topic do, AI kahani likhega aur cartoon patra alag-alag awaaz me bolenge.</p>
+    <label for="toonTopic">Kahani ka topic</label>
+    <textarea id="toonTopic" placeholder="Example: Akbar aur Birbal, chor ko kaise pakda"></textarea>
+    <label for="toonLang">Language</label>
+    <select id="toonLang"><option>Hindi</option><option>Hinglish</option><option>English</option></select>
+    <label for="toonFormat">Video size</label>
+    <select id="toonFormat"><option value="v">Vertical (Shorts)</option><option value="h">Horizontal (YouTube)</option></select>
+    <button class="primary" onclick="makeToon()">🎭 Cartoon video banao</button>
+    <p id="toonStatus" class="muted"></p>
+    <canvas id="toonCanvas" class="hidden" style="width:100%;border-radius:12px;background:#000"></canvas>
+    <video id="toonPlayer" class="hidden" controls playsinline style="width:100%;border-radius:12px"></video>
+    <div id="toonActions" class="actions hidden"><button class="primary" onclick="saveVideoGallery()">Gallery me save karo</button><button class="secondary" onclick="shareVideo()">Share / Send</button></div>
+   </div> 
     <h3>Your result</h3><div id="output" class="result"></div>
     <div class="actions"><button class="secondary" onclick="copyOutput()">Copy</button><button class="secondary" onclick="saveOutput()">Save content</button></div>
   </div>
@@ -900,6 +914,320 @@ async function testImage(){
   st.textContent='Tasveer nahi bani:\n'+(e.message||e);
  }
 }
+  const TOON_VOICES=['Puck','Kore','Charon','Aoede','Fenrir'];
+function toonColor(c,d){return /^#[0-9a-fA-F]{6}$/.test(c||'')?c:d}
+function toonRR(ctx,x,y,w,h,r){
+ ctx.beginPath();
+ ctx.moveTo(x+r,y);
+ ctx.arcTo(x+w,y,x+w,y+h,r);
+ ctx.arcTo(x+w,y+h,x,y+h,r);
+ ctx.arcTo(x,y+h,x,y,r);
+ ctx.arcTo(x,y,x+w,y,r);
+ ctx.closePath();
+}
+async function toonStory(topic,lang,gk){
+ const prompt='Write a short, fun cartoon story for a YouTube video. Topic: '+topic+'. Language: '+lang+' (if Hindi, write in Devanagari script). Use 2 or 3 characters. Return ONLY valid JSON in this exact shape: {"title":"...","characters":[{"name":"...","skin":"#f1c27d","color":"#3b82f6","hat":"none"}],"lines":[{"who":"exact character name","text":"one or two short sentences","bg":"palace"}]}. hat must be one of: none, turban, crown, cap, hair, bow. bg must be one of: palace, forest, village, room, sky. Give 8 to 14 lines, each under 110 characters, with a clear beginning, middle and a funny or moral ending. Character names must be short.';
+ const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key='+encodeURIComponent(gk),{
+  method:'POST',
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({
+   contents:[{parts:[{text:prompt}]}],
+   generationConfig:{temperature:0.9,maxOutputTokens:3000,responseMimeType:'application/json'}
+  })
+ });
+ const d=await r.json();
+ if(!r.ok)throw new Error((d.error&&d.error.message)||('HTTP '+r.status));
+ const t=d.candidates[0].content.parts.map(p=>p.text||'').join('').replace(/```json|```/g,'').trim();
+ const j=JSON.parse(t);
+ if(!j.characters||!j.characters.length||!j.lines||!j.lines.length)throw new Error('Kahani sahi format me nahi aayi, dobara try karo.');
+ j.characters=j.characters.slice(0,3);
+ j.lines=j.lines.slice(0,14);
+ return j;
+}
+function toonEnv(c){
+ if(!c)return null;
+ const win=Math.max(1,Math.floor(c.rate/20));
+ const n=Math.ceil(c.samples.length/win);
+ const e=new Float32Array(n);
+ let mx=0.0001;
+ for(let i=0;i<n;i++){
+  let s=0,k=0;
+  const end=Math.min(c.samples.length,(i+1)*win);
+  for(let j=i*win;j<end;j++){s+=c.samples[j]*c.samples[j];k++}
+  e[i]=Math.sqrt(s/Math.max(1,k));
+  if(e[i]>mx)mx=e[i];
+ }
+ for(let i=0;i<n;i++)e[i]=Math.min(1,e[i]/mx*1.3);
+ return e;
+}
+function toonBg(ctx,W,H,type,t){
+ const base=H*0.72;
+ let g;
+ if(type==='palace'){
+  g=ctx.createLinearGradient(0,0,0,base);
+  g.addColorStop(0,'#f7e7c4');g.addColorStop(1,'#e2c58a');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#c9a15a';
+  ctx.fillRect(W*0.03,0,W*0.06,base);
+  ctx.fillRect(W*0.91,0,W*0.06,base);
+  ctx.fillStyle='#93c5fd';
+  ctx.beginPath();
+  ctx.arc(W/2,H*0.26,W*0.1,Math.PI,0);
+  ctx.lineTo(W*0.6,H*0.38);ctx.lineTo(W*0.4,H*0.38);
+  ctx.closePath();ctx.fill();
+  ctx.fillStyle='#b91c1c';ctx.fillRect(0,base,W,H-base);
+  ctx.fillStyle='#fbbf24';ctx.fillRect(0,base,W,H*0.012);
+  return;
+ }
+ g=ctx.createLinearGradient(0,0,0,base);
+ if(type==='room'){
+  g.addColorStop(0,'#fde68a');g.addColorStop(1,'#fcd34d');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#a16207';ctx.fillRect(0,base,W,H-base);
+  ctx.fillStyle='#bae6fd';ctx.fillRect(W*0.38,H*0.12,W*0.24,H*0.2);
+  ctx.fillStyle='#fff';
+  ctx.fillRect(W*0.495,H*0.12,W*0.01,H*0.2);
+  ctx.fillRect(W*0.38,H*0.215,W*0.24,H*0.01);
+  return;
+ }
+ g.addColorStop(0,'#7dd3fc');g.addColorStop(1,'#e0f2fe');
+ ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ ctx.fillStyle='rgba(255,255,255,0.9)';
+ for(let i=0;i<3;i++){
+  const cx=((t*18+i*W/3)%(W+240))-120,cy=H*(0.1+0.06*i);
+  ctx.beginPath();
+  ctx.arc(cx,cy,28,0,7);ctx.arc(cx+30,cy+6,24,0,7);ctx.arc(cx-30,cy+6,22,0,7);
+  ctx.fill();
+ }
+ ctx.fillStyle=type==='village'?'#86efac':'#4ade80';
+ ctx.fillRect(0,base,W,H-base);
+ if(type==='forest'){
+  for(let i=0;i<5;i++){
+   const tx=W*(0.1+0.2*i);
+   ctx.fillStyle='#92400e';ctx.fillRect(tx-10,base-H*0.12,20,H*0.12);
+   ctx.fillStyle='#15803d';ctx.beginPath();ctx.arc(tx,base-H*0.17,W*0.08,0,7);ctx.fill();
+  }
+ }else if(type==='village'){
+  ctx.fillStyle='#fde047';
+  ctx.beginPath();ctx.arc(W*0.85,H*0.1,W*0.06,0,7);ctx.fill();
+  [[0.15,'#fcd34d'],[0.72,'#fca5a5']].forEach(h=>{
+   const hx=W*h[0],hw=W*0.2,hh=H*0.1;
+   ctx.fillStyle=h[1];ctx.fillRect(hx,base-hh,hw,hh);
+   ctx.fillStyle='#b45309';
+   ctx.beginPath();
+   ctx.moveTo(hx-8,base-hh);ctx.lineTo(hx+hw/2,base-hh-H*0.06);ctx.lineTo(hx+hw+8,base-hh);
+   ctx.closePath();ctx.fill();
+   ctx.fillStyle='#78350f';ctx.fillRect(hx+hw*0.4,base-hh*0.6,hw*0.2,hh*0.6);
+  });
+ }
+}
+function toonChar(ctx,x,y,s,ch,speak,open,t,look){
+ const bob=speak?Math.sin(t*9)*4*s*open:0;
+ ctx.save();
+ ctx.translate(x,y+bob);
+ ctx.scale(s,s);
+ ctx.fillStyle='#374151';
+ ctx.fillRect(-30,-70,22,70);ctx.fillRect(8,-70,22,70);
+ ctx.fillStyle='#111827';
+ ctx.fillRect(-38,-10,34,12);ctx.fillRect(4,-10,34,12);
+ ctx.fillStyle=ch.color;
+ toonRR(ctx,-48,-172,96,112,26);ctx.fill();
+ const up=speak?-26*Math.abs(Math.sin(t*6)):0;
+ ctx.strokeStyle=ch.color;ctx.lineWidth=20;ctx.lineCap='round';
+ ctx.beginPath();ctx.moveTo(-48,-150);ctx.lineTo(-80,-100+up);ctx.stroke();
+ ctx.beginPath();ctx.moveTo(48,-150);ctx.lineTo(80,-100);ctx.stroke();
+ ctx.fillStyle=ch.skin;
+ ctx.beginPath();ctx.arc(-80,-100+up,13,0,7);ctx.fill();
+ ctx.beginPath();ctx.arc(80,-100,13,0,7);ctx.fill();
+ ctx.beginPath();ctx.arc(-58,-222,12,0,7);ctx.arc(58,-222,12,0,7);ctx.fill();
+ ctx.beginPath();ctx.arc(0,-222,58,0,7);ctx.fill();
+ if(ch.hat==='turban'){
+  ctx.fillStyle='#f59e0b';
+  ctx.beginPath();ctx.ellipse(0,-272,64,30,0,0,7);ctx.fill();
+  ctx.fillStyle='#dc2626';
+  ctx.beginPath();ctx.arc(0,-280,8,0,7);ctx.fill();
+ }else if(ch.hat==='crown'){
+  ctx.fillStyle='#fbbf24';
+  ctx.beginPath();
+  ctx.moveTo(-42,-272);ctx.lineTo(-42,-308);ctx.lineTo(-21,-288);ctx.lineTo(0,-314);
+  ctx.lineTo(21,-288);ctx.lineTo(42,-308);ctx.lineTo(42,-272);
+  ctx.closePath();ctx.fill();
+ }else if(ch.hat==='cap'){
+  ctx.fillStyle=ch.color;
+  ctx.beginPath();ctx.arc(0,-250,60,Math.PI,0);ctx.fill();
+  ctx.fillRect(-8,-258,72,10);
+ }else if(ch.hat==='hair'||ch.hat==='bow'){
+  ctx.fillStyle='#2d1b0e';
+  ctx.beginPath();ctx.arc(0,-250,60,Math.PI,0);ctx.fill();
+  if(ch.hat==='bow'){
+   ctx.fillStyle='#ec4899';
+   ctx.beginPath();
+   ctx.moveTo(34,-296);ctx.lineTo(60,-312);ctx.lineTo(60,-280);ctx.closePath();ctx.fill();
+   ctx.beginPath();
+   ctx.moveTo(34,-296);ctx.lineTo(8,-312);ctx.lineTo(8,-280);ctx.closePath();ctx.fill();
+  }
+ }
+ const blink=(t%3.4)<0.12;
+ for(const ex of [-22,22]){
+  if(blink){
+   ctx.strokeStyle='#111';ctx.lineWidth=4;
+   ctx.beginPath();ctx.moveTo(ex-10,-230);ctx.lineTo(ex+10,-230);ctx.stroke();
+  }else{
+   ctx.fillStyle='#fff';
+   ctx.beginPath();ctx.ellipse(ex,-230,13,15,0,0,7);ctx.fill();
+   ctx.fillStyle='#111';
+   ctx.beginPath();ctx.arc(ex+look*3,-228,6,0,7);ctx.fill();
+  }
+ }
+ ctx.fillStyle='rgba(244,114,182,0.45)';
+ ctx.beginPath();ctx.arc(-38,-205,9,0,7);ctx.arc(38,-205,9,0,7);ctx.fill();
+ const mo=open*22;
+ if(mo<3){
+  ctx.strokeStyle='#7f1d1d';ctx.lineWidth=4;
+  ctx.beginPath();ctx.arc(0,-205,17,0.15*Math.PI,0.85*Math.PI);ctx.stroke();
+ }else{
+  ctx.fillStyle='#7f1d1d';
+  ctx.beginPath();ctx.ellipse(0,-196,17,3+mo*0.55,0,0,7);ctx.fill();
+  ctx.fillStyle='#f87171';
+  ctx.beginPath();ctx.ellipse(0,-196+mo*0.3,9,3+mo*0.2,0,0,7);ctx.fill();
+ }
+ ctx.restore();
+}
+function toonSub(ctx,W,H,name,text){
+ const size=Math.round(Math.min(W,H)*0.052);
+ ctx.font='700 '+size+'px sans-serif';
+ const lines=wrapLines(ctx,name+': '+text,W*0.86);
+ const lh=size*1.3,bh=lines.length*lh+size*0.8;
+ const top=Math.min(H*0.8,H-bh-12);
+ ctx.fillStyle='rgba(0,0,0,0.6)';
+ toonRR(ctx,W*0.04,top,W*0.92,bh,18);ctx.fill();
+ ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+ lines.forEach((l,i)=>ctx.fillText(l,W/2,top+size*0.4+lh*(i+0.5)));
+}
+async function makeToon(){
+ if(vidBusy)return;
+ const topic=$('toonTopic').value.trim();
+ const st=$('toonStatus');
+ if(!topic){alert('Pehle kahani ka topic likho.');return}
+ const gk=localStorage.getItem('csm_gemini_key');
+ if(!gk){alert('Pehle Settings me Gemini key save karo.');show('settings');return}
+ if(typeof MediaRecorder==='undefined'){alert('Is phone me video recording support nahi hai.');return}
+ const vertical=$('toonFormat').value==='v';
+ const W=vertical?720:1280,H=vertical?1280:720;
+ const cv=$('toonCanvas');
+ vidBusy=true;
+ let ac=null,wake=null,stream=null;
+ try{
+  st.textContent='Kahani likh raha hoon...';
+  const story=await toonStory(topic,$('toonLang').value,gk);
+  const defC=['#3b82f6','#ef4444','#10b981'];
+  const chars=story.characters.map((c,i)=>({
+   name:String(c.name||('Patra '+(i+1))),
+   skin:toonColor(c.skin,'#f1c27d'),
+   color:toonColor(c.color,defC[i%3]),
+   hat:String(c.hat||'none'),
+   voice:TOON_VOICES[i%TOON_VOICES.length]
+  }));
+  const lines=story.lines.map(l=>({who:String(l.who||''),text:String(l.text||'').trim(),bg:String(l.bg||'sky')})).filter(l=>l.text);
+  if(!lines.length)throw new Error('Kahani khali aayi.');
+  currentScript=(story.title?story.title+'\n\n':'')+lines.map(l=>l.who+': '+l.text).join('\n');
+  ac=new (window.AudioContext||window.webkitAudioContext)();
+  await ac.resume();
+  const clips=[];
+  for(let i=0;i<lines.length;i++){
+   const ch=chars.find(c=>c.name===lines[i].who)||chars[0];
+   const label='Awaaz '+(i+1)+'/'+lines.length+':';
+   st.textContent=label+' ban rahi hai...';
+   try{
+    clips.push(await ttsRetry(lines[i].text,ch.voice,st,label));
+   }catch(e){
+    if(i===0)throw e;
+    clips.push(null);
+   }
+  }
+  const envs=clips.map(toonEnv);
+  const durs=clips.map((c,i)=>c?Math.max(2,c.samples.length/c.rate+0.5)*1000:Math.max(2.5,Math.min(8,lines[i].text.split(/\s+/).length*0.45))*1000);
+  const total=durs.reduce((x,y)=>x+y,0);
+  cv.width=W;cv.height=H;cv.classList.remove('hidden');
+  $('toonPlayer').classList.add('hidden');
+  $('toonActions').classList.add('hidden');
+  const ctx=cv.getContext('2d');
+  const dest=ac.createMediaStreamDestination();
+  const types=['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  const mime=types.find(t=>MediaRecorder.isTypeSupported(t))||'';
+  stream=cv.captureStream(30);
+  dest.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+  const rec=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:2000000}:{videoBitsPerSecond:2000000});
+  const chunks=[];
+  rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  const done=new Promise(r=>{rec.onstop=r});
+  try{wake=await navigator.wakeLock.request('screen')}catch(e){}
+  rec.start(500);
+  const base=ac.currentTime+0.3;
+  let acc=0;
+  clips.forEach((c,i)=>{
+   if(c){
+    const buf=ac.createBuffer(1,c.samples.length,c.rate);
+    buf.copyToChannel(c.samples,0);
+    const s=ac.createBufferSource();
+    s.buffer=buf;
+    s.connect(dest);
+    s.connect(ac.destination);
+    s.start(base+acc/1000);
+   }
+   acc+=durs[i];
+  });
+  const n=chars.length;
+  const xs=n===1?[0.5]:(n===2?[0.27,0.73]:[0.18,0.5,0.82]);
+  const sc=Math.min((W/n*0.85)/170,(H*0.5)/280);
+  await new Promise(resolve=>{
+   function frame(){
+    const el=(ac.currentTime-base)*1000;
+    if(el>=total){resolve();return}
+    const e2=Math.max(0,el);
+    const t=e2/1000;
+    let a2=0,i=0;
+    while(i<durs.length-1&&e2>=a2+durs[i]){a2+=durs[i];i++}
+    const lt=(e2-a2)/1000;
+    const L=lines[i];
+    toonBg(ctx,W,H,L.bg,t);
+    let si=chars.findIndex(c=>c.name===L.who);
+    if(si<0)si=0;
+    for(let k=0;k<n;k++){
+     const sp=k===si;
+     let open=0;
+     if(sp){
+      const env=envs[i];
+      if(env){const idx=Math.floor(lt*20);open=idx<env.length?env[idx]:0}
+      else open=0.5+0.5*Math.sin(t*14);
+     }
+     toonChar(ctx,W*xs[k],H*0.72,sc*(sp?1.05:1),chars[k],sp,open,t,xs[k]<0.5?1:(xs[k]>0.5?-1:0));
+    }
+    toonSub(ctx,W,H,chars[si].name,L.text);
+    st.textContent='Cartoon ban raha hai... '+Math.round(el/total*100)+'% (app band mat karo)';
+    requestAnimationFrame(frame);
+   }
+   frame();
+  });
+  rec.stop();
+  await done;
+  const bt=(rec.mimeType||mime||'video/webm').split(';')[0];
+  vidExt=bt.indexOf('mp4')>=0?'mp4':'webm';
+  vidBlob=new Blob(chunks,{type:bt});
+  const pl=$('toonPlayer');
+  if(pl.src)URL.revokeObjectURL(pl.src);
+  pl.src=URL.createObjectURL(vidBlob);
+  pl.classList.remove('hidden');cv.classList.add('hidden');
+  $('toonActions').classList.remove('hidden');
+  st.textContent='Cartoon taiyar: '+lines.length+' dialogue, '+Math.round(total/1000)+' second.';
+ }catch(e){
+  st.textContent='Cartoon nahi bana: '+(e&&e.message||e);
+ }
+ if(stream)stream.getTracks().forEach(t=>t.stop());
+ if(wake){try{wake.release()}catch(e){}}
+ if(ac){try{ac.close()}catch(e){}}
+ vidBusy=false;
+    }
 </script>
 </body>
 </html>
