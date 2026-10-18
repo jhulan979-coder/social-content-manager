@@ -2056,8 +2056,7 @@ async function makeToon3(){
     vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.38)');
     ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
   
-</script>
-  <script>
+<script>
 (function(){
  function show(msg){
   var d=document.createElement('div');
@@ -2076,9 +2075,9 @@ async function makeToon3(){
   var depth=0,prev=-1,msg='';
   for(var n=0;n<lines.length;n++){
    var ln=lines[n];
-   if(/^(async function|function|const|let) /.test(ln)){
+   if(/^(async function|function) /.test(ln)){
     if(depth!==0){
-     msg='Adhura function (line '+(prev+1)+'):\n'+lines[prev].slice(0,80)+'\n\nYe khula reh gaya, agla function line '+(n+1)+' pe shuru ho gaya:\n'+ln.slice(0,80);
+     msg='Adhura function (line '+(prev+1)+'):\n'+(lines[prev]||'').slice(0,80)+'\n\nAgla function line '+(n+1)+' pe shuru hua:\n'+ln.slice(0,80);
      break;
     }
     prev=n;
@@ -2093,10 +2092,14 @@ async function makeToon3(){
     break;
    }
   }
-  if(!msg&&depth!==0)msg='Aakhir tak ek { band nahi hua. Aakhri function (line '+(prev+1)+'):\n'+(lines[prev]||'').slice(0,80);
-  show(msg||'Brackets sahi lag rahe hain.');
+  if(!msg&&depth!==0)msg='Aakhir tak ek { band nahi hua (kami: '+depth+'). Aakhri function (line '+(prev+1)+'):\n'+(lines[prev]||'').slice(0,80);
+  var last='';
+  for(var q=lines.length-1;q>=0;q--){
+   if(lines[q].trim()){last=lines[q];break}
+  }
+  show((msg||'Brackets sahi lag rahe hain.')+'\n\nScript ki aakhri line: '+last.slice(0,80)+'\nKul lines: '+lines.length);
  }catch(e){show('Check nahi chala: '+e.message)}
 })();
-  </script>
+</script>
 </body>
 </html>
