@@ -147,6 +147,7 @@ window.onerror=function(m,s,l,c){
     <label for="toonFormat">Video size</label>
     <select id="toonFormat"><option value="v">Vertical (Shorts)</option><option value="h">Horizontal (YouTube)</option></select>
     <button class="primary" onclick="makeToon3()">🎭 Cartoon video banao</button>
+    <button class="primary" onclick="if(window.makeToon3D){makeToon3D()}else{alert('3D file load nahi hui. Internet check karo.')}">🧊 3D Cartoon video banao</button>
     <p id="toonStatus" class="muted"></p>
     <canvas id="toonCanvas" class="hidden" style="width:100%;border-radius:12px;background:#000"></canvas>
     <video id="toonPlayer" class="hidden" controls playsinline style="width:100%;border-radius:12px"></video>
@@ -3196,5 +3197,7 @@ toonChar3=function(ctx,x,y,s,ch,o){
  }
 };
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="toon3d.js"></script>
 </body>
 </html>
