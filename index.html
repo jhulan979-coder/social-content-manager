@@ -152,6 +152,8 @@ window.onerror=function(m,s,l,c){
     <video id="toonPlayer" class="hidden" controls playsinline style="width:100%;border-radius:12px"></video>
     <div id="toonActions" class="actions hidden"><button class="primary" onclick="saveVideoGallery()">Gallery me save karo</button><button class="secondary" onclick="shareVideo()">Share / Send</button></div>
    </div> 
+      </div>
+  <div id="outputCard" class="card hidden">
     <h3>Your result</h3><div id="output" class="result"></div>
     <div class="actions"><button class="secondary" onclick="copyOutput()">Copy</button><button class="secondary" onclick="saveOutput()">Save content</button></div>
   </div>
@@ -2055,6 +2057,57 @@ async function makeToon3(){
     const vg=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.75);
     vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.38)');
     ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+       if(fade&&lt<0.35){
+     ctx.fillStyle='rgba(0,0,0,'+(1-lt/0.35)+')';
+     ctx.fillRect(0,0,W,H);
+    }
+    const sd=clips[i]?clips[i].samples.length/clips[i].rate:durs[i]/1000;
+    toonSub3(ctx,W,H,chars[si].name,L.text,Math.min(1,lt/Math.max(0.5,sd)));
+    const tsize=Math.round(Math.min(W,H)*0.058);
+    if(title&&t<2.6){
+     ctx.globalAlpha=Math.min(1,(2.6-t)*2);
+     ctx.font='800 '+tsize+'px sans-serif';
+     const tw=Math.min(W*0.9,ctx.measureText(title).width+50);
+     ctx.fillStyle='rgba(0,0,0,0.65)';
+     toonRR(ctx,(W-tw)/2,H*0.05,tw,tsize*1.9,24);ctx.fill();
+     ctx.fillStyle='#fde047';ctx.textAlign='center';ctx.textBaseline='middle';
+     ctx.fillText(title,W/2,H*0.05+tsize*0.95,W*0.88);
+     ctx.globalAlpha=1;
+    }
+    if(total-e2<2800){
+     ctx.font='800 '+tsize+'px sans-serif';
+     const lbl='👍 Like  🔔 Subscribe';
+     const lw=ctx.measureText(lbl).width+50;
+     ctx.fillStyle='rgba(220,38,38,0.9)';
+     toonRR(ctx,(W-lw)/2,H*0.05,lw,tsize*1.9,24);ctx.fill();
+     ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';
+     ctx.fillText(lbl,W/2,H*0.05+tsize*0.95);
+    }
+    st.textContent='Cartoon ban raha hai... '+Math.round(el/total*100)+'% (app band mat karo)';
+    requestAnimationFrame(frame);
+   }
+   frame();
+  });
+  rec.stop();
+  await done;
+  const bt=(rec.mimeType||mime||'video/webm').split(';')[0];
+  vidExt=bt.indexOf('mp4')>=0?'mp4':'webm';
+  vidBlob=new Blob(chunks,{type:bt});
+  const pl=$('toonPlayer');
+  if(pl.src)URL.revokeObjectURL(pl.src);
+  pl.src=URL.createObjectURL(vidBlob);
+  pl.classList.remove('hidden');cv.classList.add('hidden');
+  $('toonActions').classList.remove('hidden');
+  st.textContent='Cartoon taiyar: '+lines.length+' dialogue, '+Math.round(total/1000)+' second.';
+ }catch(e){
+  st.textContent='Cartoon nahi bana: '+(e&&e.message||e);
+ }
+ if(stream)stream.getTracks().forEach(t=>t.stop());
+ if(wake){try{wake.release()}catch(e){}}
+ if(ac){try{ac.close()}catch(e){}}
+ vidBusy=false;
+}
+</script>  
   
 <script>
 (function(){
