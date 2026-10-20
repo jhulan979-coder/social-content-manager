@@ -3198,7 +3198,18 @@ toonChar3=function(ctx,x,y,s,ch,o){
 };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<script src="toon3d.js"></script>
+<script>
+fetch('toon3d.js').then(function(r){return r.text()}).then(function(t){
+ t=t.replace('function buildChar(ch){','function buildChar(ch){try{if(window.toonBuild3D)return window.toonBuild3D(ch)}catch(e){}');
+ t=t.replace('function animChar(c,o){','function animChar(c,o){if(c.userData&&c.userData.adv&&window.toonAnim3D){try{window.toonAnim3D(c,o)}catch(e){}return}');
+ t=t.replace('const tl=new V3(spW*fxm,ly,0);','const tl=new V3(spW*fxm,ly,0);if(window.toonCamPro){try{window.toonCamPro(tp,tl,{cam:cam,dl:dl,t:t,lt:lt,i:i,si:si,cg:cg,n:n,emo:L.emo,shot:shot,vertical:vertical,fitD:fitD,snap:function(a,b){cam.position.copy(a);lookV.copy(b)}})}catch(e){}}');
+ t=t.replace('Object.keys(scn).forEach(k=>{scn[k].visible=false;scene.add(scn[k])});','Object.keys(scn).forEach(k=>{scn[k].visible=false;scene.add(scn[k])});if(window.toonDecor3D){try{window.toonDecor3D(scn,scene)}catch(e){}}');
+ var s=document.createElement('script');s.textContent=t;document.head.appendChild(s);
+}).catch(function(){window.makeToon3D=function(){alert('3D file load nahi hui.')}});
+</script>
+<script src="toon3d_chars.js"></script>
+<script src="toon3d_cam.js"></script>
+<script src="toon3d_decor.js"></script>
   <script>
 function toonParseJSON(raw){
  let s=String(raw||'').replace(/```json|```/g,'').trim();
