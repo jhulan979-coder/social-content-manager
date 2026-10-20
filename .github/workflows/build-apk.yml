@@ -27,6 +27,9 @@ jobs:
           mkdir -p www
           cp index.html www/index.html
           cp toon3d.js www/toon3d.js
+          cp toon3d_chars.js www/toon3d_chars.js
+          cp toon3d_cam.js www/toon3d_cam.js
+          cp toon3d_decor.js www/toon3d_decor.js
       - run: npx cap add android
       - name: Add video saver
         run: |
