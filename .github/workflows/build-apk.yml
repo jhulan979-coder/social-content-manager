@@ -33,6 +33,7 @@ jobs:
           cp toon3d_decor.js www/toon3d_decor.js
           cp toon3d_rig.js www/toon3d_rig.js
           cp save_fix.js www/save_fix.js
+          cp quiz_fresh.js www/quiz_fresh.js
       - run: npx cap add android
       - name: Add video saver
         run: |
