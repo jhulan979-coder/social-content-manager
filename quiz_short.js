@@ -207,7 +207,16 @@
   drawLines(g,f,0,m*0.02);
   g.fillStyle='#fde047';
   g.font='800 '+Math.round(m*0.05)+'px sans-serif';
-  g.fillText(L.hook+'  •  '+qz.qs.length+' '+L.q+'  •  '+T+' sec',0,m*0.3,W*0.9);
+  const hk=qz.hook||L.hook;
+  const hf=fit(g,hk,W*0.78,m*0.17,Math.round(m*0.065),20,'900');
+  const hh=hf.lines.length*hf.s*1.28+m*0.05;
+  g.fillStyle='#dc2626';
+  rr(g,-W*0.43,m*0.3-hh/2,W*0.86,hh,m*0.04);g.fill();
+  g.fillStyle='#ffffff';
+  drawLines(g,hf,0,m*0.3);
+  g.fillStyle='#fde047';
+  g.font='800 '+Math.round(m*0.04)+'px sans-serif';
+  g.fillText(qz.qs.length+' '+L.q+'  •  '+T+' sec',0,m*0.3+hh/2+m*0.05,W*0.9);
   g.restore();
   g.globalAlpha=1;
  }
@@ -505,7 +514,7 @@
     });
    }
    if(!qs.length)throw new Error('Sawaal sahi format me nahi aaye, dobara dabao.');
-   QZ={title:String(o.title||'Quiz').slice(0,45),qs:qs,lang:lang,kind:kind,topic:topic};
+   QZ={title:String(o.title||'Quiz').slice(0,45),hook:String(o.hook||'').replace(/["“”]/g,'').slice(0,48),qs:qs,lang:lang,kind:kind,topic:topic};
    let txt=QZ.title+'\n\n';
    qs.forEach(function(q,i){
     if(kind==='emoji')txt+=(i+1)+'. '+q.emoji+'\n';
@@ -538,7 +547,7 @@
   g.textAlign='center';
   strokeLines(g,f,400,300,'#ffffff');
   g.font='900 56px sans-serif';
-  const hk='🔥 '+L.hook,hw=Math.min(720,g.measureText(hk).width+60);
+  const hk='🔥 '+(QZ.hook||L.hook),,hw=Math.min(720,g.measureText(hk).width+60);
   g.fillStyle='#facc15';rr(g,400-hw/2,500,hw,100,30);g.fill();
   g.fillStyle='#111';g.fillText(hk,400,552,hw-30);
   let big=KE[QZ.kind]||'🧠';
