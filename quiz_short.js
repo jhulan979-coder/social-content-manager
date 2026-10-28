@@ -547,7 +547,7 @@
   g.textAlign='center';
   strokeLines(g,f,400,300,'#ffffff');
   g.font='900 56px sans-serif';
-  const hk='🔥 '+(QZ.hook||L.hook),,hw=Math.min(720,g.measureText(hk).width+60);
+  const hk='🔥 '+(QZ.hook||L.hook),hw=Math.min(720,g.measureText(hk).width+60);
   g.fillStyle='#facc15';rr(g,400-hw/2,500,hw,100,30);g.fill();
   g.fillStyle='#111';g.fillText(hk,400,552,hw-30);
   let big=KE[QZ.kind]||'🧠';
