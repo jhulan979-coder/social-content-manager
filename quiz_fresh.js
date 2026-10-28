@@ -75,6 +75,10 @@
    if(avoid.length)p+=' ALREADY USED (do not repeat or paraphrase any of these): '+avoid.join(' | ')+'.';
    if(k>0)p+=' The previous attempt repeated old content. Make this set completely different.';
    p+=' ALSO add one more top-level field "hook": a very short curiosity line (max 40 characters, no quote characters) in the same language as the questions, that makes people stay and watch, for example a bold claim like "99% log ye galat bolte hain" or a challenge like "Sirf genius 5/5 laayenge". It must be different every time and match the topic.';
+      if(kind==='mcq')p+=' STYLE MIX: use at least 3 different question styles among: what/which, how many or how much, who, where, in which year, odd one out, fill in the blank, and "which of these is NOT". No two questions may start with the same first two words. Each question must come from a different sub-topic.';
+   if(kind==='tf')p+=' Every statement must be about a different subject, with a different sentence opening, and mix easy and surprising ones.';
+   if(kind==='emoji')p+=' Every puzzle must be from a different category (film, song, food, place, proverb, object, person, animal).';
+   if(kind==='scam')p+=' Each message must use a different scam type and a different sender or brand. Never reuse the same theme twice.';
    const c=Object.assign({},cfg||{},{temperature:Math.min(1.3,1.0+0.1*k)});
    let raw;
    try{raw=await orig(p,c)}catch(e){if(k===2&&!best)throw e;continue}
