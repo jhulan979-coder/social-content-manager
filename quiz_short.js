@@ -195,31 +195,35 @@
   const gx=W*0.02,ow=(W-2*pad-gx)/2,oh=H*0.2,gy=H*0.03,oy=H*0.48;
   return {pad:pad,q:{x:pad,y:H*0.17,w:W-2*pad,h:H*0.27},opts:[0,1,2,3].map(function(i){return {x:pad+(i%2)*(ow+gx),y:oy+Math.floor(i/2)*(oh+gy),w:ow,h:oh}}),foot:H*0.955,hy:H*0.04};
  }
- function drawIntro(g,W,H,lt,L,qz,T){
+  function drawIntro(g,W,H,lt,L,qz,T){
   bgDraw(g,W,H,0,lt);
-  const m=Math.min(W,H),a=cl(lt/0.5),s=0.6+0.4*a;
+  const m=Math.min(W,H),a=cl(lt/0.4),s=0.6+0.4*a;
   g.save();g.translate(W/2,H/2);g.scale(s,s);g.globalAlpha=a;
   g.textAlign='center';g.textBaseline='middle';
-  g.font=Math.round(m*0.22)+'px sans-serif';
+  g.font=Math.round(m*0.2)+'px sans-serif';
   g.fillText(KE[qz.kind]||'🧠',0,-m*0.3-Math.abs(Math.sin(lt*4))*m*0.03);
   g.fillStyle='#ffffff';
-  const f=fit(g,qz.title,W*0.84,m*0.34,Math.round(m*0.12),30,'900');
-  drawLines(g,f,0,m*0.02);
-  g.fillStyle='#fde047';
-  g.font='800 '+Math.round(m*0.05)+'px sans-serif';
+  const f=fit(g,qz.title,W*0.84,m*0.3,Math.round(m*0.11),30,'900');
+  drawLines(g,f,0,-m*0.02);
   const hk=qz.hook||L.hook;
-  const hf=fit(g,hk,W*0.78,m*0.17,Math.round(m*0.065),20,'900');
-  const hh=hf.lines.length*hf.s*1.28+m*0.05;
+  const hf=fit(g,hk,W*0.76,m*0.22,Math.round(m*0.075),22,'900');
+  const hh=hf.lines.length*hf.s*1.28+m*0.07;
+  const hy=m*0.27;
+  g.save();
+  g.translate(0,hy);
+  g.scale(1+0.03*Math.sin(lt*8),1+0.03*Math.sin(lt*8));
   g.fillStyle='#dc2626';
-  rr(g,-W*0.43,m*0.3-hh/2,W*0.86,hh,m*0.04);g.fill();
+  rr(g,-W*0.43,-hh/2,W*0.86,hh,m*0.04);g.fill();
+  g.lineWidth=4;g.strokeStyle='#fde047';g.stroke();
   g.fillStyle='#ffffff';
-  drawLines(g,hf,0,m*0.3);
+  drawLines(g,hf,0,0);
+  g.restore();
   g.fillStyle='#fde047';
   g.font='800 '+Math.round(m*0.04)+'px sans-serif';
-  g.fillText(qz.qs.length+' '+L.q+'  •  '+T+' sec',0,m*0.3+hh/2+m*0.05,W*0.9);
+  g.fillText(qz.qs.length+' '+L.q+'  •  '+T+' sec',0,hy+hh/2+m*0.05,W*0.9);
   g.restore();
   g.globalAlpha=1;
- }
+}
  function drawOutro(g,W,H,lt,L,qz,outro){
   bgDraw(g,W,H,3,lt);
   const m=Math.min(W,H),a=cl(lt/0.5);
@@ -515,6 +519,18 @@
    }
    if(!qs.length)throw new Error('Sawaal sahi format me nahi aaye, dobara dabao.');
    QZ={title:String(o.title||'Quiz').slice(0,45),hook:String(o.hook||'').replace(/["“”]/g,'').slice(0,48),qs:qs,lang:lang,kind:kind,topic:topic};
+   if(!QZ.hook){
+    try{
+      const hr=await geminiText('Write ONE short hook line (max 40 characters, no quote characters) for a YouTube Shorts quiz. Topic: '+topic+'. Quiz title: '+QZ.title+'. Language: '+lang+' (if Hindi, write in Devanagari script; Hinglish means Hindi written in Latin letters). It must make viewers curious or feel challenged, like a bold claim or a dare. Return ONLY valid JSON: {"hook":"the line"}',{temperature:1.1,maxOutputTokens:200,responseMimeType:'application/json'});
+      const hj=(typeof toonParseJSON==='function')?toonParseJSON(hr):JSON.parse(String(hr).replace(/```json|```/g,'').trim());
+      QZ.hook=String((hj&&hj.hook)||'').replace(/["“”]/g,'').trim().slice(0,48);
+     }catch(e){}
+    }
+    if(!QZ.hook){
+     const HK={Hindi:['99% लोग ये गलत बोलते हैं','सिर्फ़ जीनियस 5/5 लाएँगे','आख़िरी सवाल सबसे मुश्किल है','क्या आप पास हो पाओगे?'],Hinglish:['99% log ye galat bolte hain','Sirf genius 5/5 laayenge','Aakhri sawaal sabse mushkil hai','Kya aap pass ho paoge?'],English:['99% of people get this wrong','Only geniuses score 5/5','The last one is the hardest','Can you pass this quiz?']};
+     const arr=HK[lang]||HK.Hinglish;
+     QZ.hook=arr[Math.floor(Math.random()*arr.length)];
+    }
    let txt=QZ.title+'\n\n';
    qs.forEach(function(q,i){
     if(kind==='emoji')txt+=(i+1)+'. '+q.emoji+'\n';
@@ -648,8 +664,8 @@
     }
    }
    const segs=[];
-   let acc=2600;
-   segs.push({k:'intro',s:0,d:2600});
+   let acc=3500;
+   segs.push({k:'intro',s:0,d:3500});
    QZ.qs.forEach(function(q,i){
     const c=clips[i];
     const cd=c?c.samples.length/c.rate:4.5;
