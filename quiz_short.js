@@ -663,9 +663,17 @@
      clips.push(null);
     }
    }
+  let hookClip=null;
+  if(QZ.hook){
+   try{
+    st.textContent='Hook ki awaaz ban rahi hai...';
+    hookClip=await ttsRetry(QZ.hook,voice,st,'Hook:');
+   }catch(e){hookClip=null}
+  }
    const segs=[];
-   let acc=3500;
-   segs.push({k:'intro',s:0,d:3500});
+   const introMs=Math.max(3500,hookClip?Math.round(hookClip.samples.length/hookClip.rate*1000)+900:0);
+  let acc=introMs;
+  segs.push({k:'intro',s:0,d:introMs});
    QZ.qs.forEach(function(q,i){
     const c=clips[i];
     const cd=c?c.samples.length/c.rate:4.5;
@@ -694,6 +702,13 @@
    const fx=qSfx(ac,dest);
    if(mm!=='none'){try{quizMusic(ac,dest,base,segs,total,custom)}catch(e){}}
    fx.whoosh(base+0.05);
+   if(hookClip){
+   const hb=ac.createBuffer(1,hookClip.samples.length,hookClip.rate);
+   hb.copyToChannel(hookClip.samples,0);
+   const hs=ac.createBufferSource();
+   hs.buffer=hb;hs.connect(dest);hs.connect(ac.destination);
+   hs.start(base+0.45);
+     }
    segs.forEach(function(s){
     if(s.k!=='q')return;
     const t0=base+s.s/1000;
